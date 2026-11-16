@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ms" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Timemark Pro - Kamera Cap Masa</title>
+    <!-- Muat turun Tailwind CSS untuk gaya moden & responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fon Inter untuk kebolehbacaan yang jelas -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090b; /* Zinc 950 */
+            color: #fafafa;
+            overscroll-behavior-y: contain;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Animasi kilat kamera (shutter flash) */
+        @keyframes flashAnim {
+            0% { opacity: 0.9; }
+            100% { opacity: 0; }
+        }
+        .camera-flash {
+            animation: flashAnim 0.35s ease-out forwards;
+        }
+
+        /* Gaya scrollbar halus */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none overflow-x-hidden">
+
+    <!-- ==================== HEADER & LOGO CANTIK ==================== -->
+    <header class="w-full px-4 py-3 bg-zinc-900/90 backdrop-blur-md border-b border-zinc-800/80 flex items-center justify-between sticky top-0 z-30">
+        <div class="flex items-center gap-2.5">
+            <!-- Logo SVG Kustom Moden -->
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 p-0.5 shadow-lg shadow-emerald-500/20 flex items-center justify-center">
+                <div class="w-full h-full bg-zinc-950/90 rounded-[10px] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Lensa Kamera + Tanda Masa -->
+                        <circle cx="12" cy="12" r="9" stroke="url(#logoGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="4" stroke="#34d399" stroke-width="1.8"/>
+                        <path d="M12 9.5V12L13.8 13.2" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="logoGrad" x1="3" y1="3" x2="21" y2="21" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#34d399"/>
+                                <stop offset="1" stop-color="#06b6d4"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <h1 class="text-base font-bold tracking-tight text-white leading-none">Timemark<span class="text-emerald-400">Pro</span></h1>
+                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">AUTO</span>
+                </div>
+                <p class="text-[11px] text-zinc-400 mt-0.5">Kamera Tarikh & Masa</p>
+            </div>
+        </div>
+
+        <!-- Butang Muat Naik dari Galeri (Alternatif) -->
+        <label for="galleryInput" class="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 transition text-xs font-medium text-zinc-200 border border-zinc-700/70">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span>Galeri</span>
+        </label>
+        <input type="file" id="galleryInput" accept="image/*" class="hidden">
+    </header>
+
+    <!-- ==================== RUANG UTAMA (KAMERA + PRATONTON WATERMARK) ==================== -->
+    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-lg mx-auto px-3 py-2 gap-3">
+        
+        <!-- Bingkai Paparan Kamera / Gambar -->
+        <div id="viewfinderWrapper" class="relative w-full aspect-[3/4] max-h-[58vh] bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl flex items-center justify-center">
+            
+            <!-- Video Strim Langsung -->
+            <video id="cameraVideo" autoplay playsinline muted class="w-full h-full object-cover transition-transform duration-300 ease-out"></video>
+            
+            <!-- Gambar dari Galeri (jika pengguna pilih dari galeri) -->
+            <img id="uploadedImage" alt="Gambar Dipilih" class="hidden w-full h-full object-contain bg-black transition-transform duration-300 ease-out">
+
+            <!-- Mesej Ralat / Tiada Akses Kamera -->
+            <div id="cameraFallback" class="hidden absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 z-10">
+                <div class="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center mb-3 text-emerald-400">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <p id="cameraErrorMsg" class="text-sm font-medium text-zinc-200 mb-1">Kamera tidak dapat diakses</p>
+                <p class="text-xs text-zinc-400 mb-4">Sila benarkan akses kamera pada pelayar atau pilih gambar dari Galeri di atas.</p>
+                <button id="retryCameraBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition">
+                    Cuba Lagi Kamera
+                </button>
+            </div>
+
+            <!-- Penunjuk Sudut Putaran (Badge Atas Kiri) -->
+            <div class="absolute top-3 left-3 z-20 flex items-center gap-1.5">
+                <span id="rotationBadge" class="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-zinc-200 border border-white/10">
+                    Putaran: 0°
+                </span>
+                <button id="backToLiveBtn" class="hidden px-2.5 py-1 rounded-full bg-emerald-600/90 backdrop-blur-md text-[11px] font-semibold text-white shadow">
+                    ← Kamera Live
+                </button>
+            </div>
+
+            <!-- Butang Kawalan Pantas di Atas Kanan (Rotate & Flip) -->
+            <div class="absolute top-3 right-3 z-20 flex items-center gap-2">
+                <!-- Butang Rotate 90° -->
+                <button id="rotateBtn" title="Putar 90°" class="p-2.5 rounded-full bg-black/60 hover:bg-black/80 active:scale-90 backdrop-blur-md text-white border border-white/15 transition shadow-lg">
+                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </button>
+                <!-- Butang Tukar Kamera Depan/Belakang -->
+                <button id="flipCameraBtn" title="Tukar Kamera" class="p-2.5 rounded-full bg-black/60 hover:bg-black/80 active:scale-90 backdrop-blur-md text-white border border-white/15 transition shadow-lg">
+                    <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- PRATONTON LANGSUNG WATERMARK (Overlay di Bawah Kiri Kamera) -->
+            <div class="absolute bottom-3 left-3 right-3 z-20 pointer-events-none">
+                <div class="inline-flex items-center gap-2.5 max-w-full bg-black/55 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-white/15 shadow-lg">
+                    <!-- Logo Kecil pada Watermark -->
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow">
+                        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2.2"/>
+                            <path d="M12 7.5V12L15 14" stroke="#fde047" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <!-- Teks Tarikh & Masa -->
+                    <div class="min-w-0 flex-1">
+                        <p id="previewDateText" class="text-xs sm:text-sm font-bold text-amber-300 tracking-wide truncate">
+                            16 Nov 2026, 3:41 PM
+                        </p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/90 mt-0.5">
+                            Timemark Pro
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lapisan Kilat Kamera -->
+            <div id="flashOverlay" class="pointer-events-none absolute inset-0 bg-white opacity-0 z-30"></div>
+        </div>
+
+        <!-- ==================== PANEL INPUT RINGKAS: TARIKH & MASA ==================== -->
+        <div class="w-full bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-3 shadow-lg">
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label for="dateInput" class="text-[11px] font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Tarikh & Masa
+                    </label>
+                    <button id="resetTimeBtn" type="button" class="text-[10px] text-emerald-400 hover:underline font-medium">
+                        Auto Masa Kini
+                    </button>
+                </div>
+                <input type="text" id="dateInput" 
+                    class="w-full bg-zinc-950 border border-zinc-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2 text-xs sm:text-sm text-zinc-100 outline-none transition">
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== BAR KAWALAN BAWAH (SHUTTER BESAR & ROTATE) ==================== -->
+    <footer class="w-full max-w-lg mx-auto px-5 pb-5 pt-2 flex items-center justify-between gap-4">
+        
+        <!-- Butang Rotate Kiri (Mesra Ibu Jari) -->
+        <button id="bottomRotateBtn" type="button" class="flex flex-col items-center justify-center w-16 h-14 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-300 transition">
+            <svg class="w-5 h-5 text-amber-400 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span class="text-[10px] font-semibold">Rotate</span>
+        </button>
+
+        <!-- BUTANG TANGKAP GAMBAR UTAMA (TERUS SIMPAN KE TELEFON) -->
+        <button id="captureBtn" type="button" aria-label="Tangkap & Simpan Gambar" class="group relative flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 p-1 shadow-xl shadow-emerald-500/30 active:scale-90 transition">
+            <div class="w-full h-full rounded-full bg-zinc-950 p-1 flex items-center justify-center">
+                <div class="w-full h-full rounded-full bg-white group-hover:bg-emerald-50 flex items-center justify-center transition">
+                    <svg class="w-7 h-7 text-zinc-950" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <circle cx="12" cy="13" r="3"/>
+                    </svg>
+                </div>
+            </div>
+        </button>
+
+        <!-- Butang Hasil Terakhir / Pratonton -->
+        <button id="lastPhotoBtn" type="button" disabled class="flex flex-col items-center justify-center w-16 h-14 rounded-2xl bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-zinc-800 text-zinc-400 disabled:opacity-40 transition overflow-hidden relative">
+            <img id="lastThumbImg" alt="Hasil" class="hidden absolute inset-0 w-full h-full object-cover">
+            <div id="lastThumbPlaceholder" class="flex flex-col items-center">
+                <svg class="w-5 h-5 text-emerald-400 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span class="text-[10px] font-semibold">Fail</span>
+            </div>
+        </button>
+    </footer>
+
+    <!-- ==================== MODAL PRATONTON HASIL & KONGSI ==================== -->
+    <div id="resultModal" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <!-- Header Modal -->
+            <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <h2 class="text-sm font-bold text-white">Berjaya Disimpan ke Telefon!</h2>
+                </div>
+                <button id="closeModalBtn" class="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Paparan Gambar Hasil -->
+            <div class="p-3 bg-black flex-1 overflow-auto flex items-center justify-center">
+                <img id="finalResultImg" alt="Hasil Timemark" class="max-h-[55vh] w-auto rounded-xl object-contain border border-zinc-800">
+            </div>
+
+            <!-- Nama Fail & Butang Tindakan -->
+            <div class="p-4 bg-zinc-900 border-t border-zinc-800 space-y-3">
+                <p id="savedFileNameText" class="text-[11px] text-center text-zinc-400 font-mono truncate">
+                    Timemark_20261116_153900.jpg
+                </p>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button id="reDownloadBtn" class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white border border-zinc-700 transition">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Simpan Semula
+                    </button>
+                    <button id="shareBtn" class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-lg shadow-emerald-600/20 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                        </svg>
+                        Kongsi Gambar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifikasi Toast Ringkas -->
+    <div id="toastMsg" class="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 opacity-0 transition-opacity duration-300 bg-zinc-800/95 border border-emerald-500/40 text-white text-xs font-medium px-4 py-2 rounded-full shadow-xl backdrop-blur-md">
+        Gambar berjaya disimpan!
+    </div>
+
+    <!-- Kanvas Tersembunyi untuk Pemprosesan Gambar Berkualiti Tinggi -->
+    <canvas id="renderCanvas" class="hidden"></canvas>
+
+    <!-- ==================== SKRIP LOGIK APLIKASI ==================== -->
+    <script>
+        // Keadaan (State) Utama Aplikasi
+        const state = {
+            stream: null,
+            facingMode: 'environment', // 'environment' = kamera belakang, 'user' = kamera depan
+            rotation: 0,               // 0, 90, 180, 270 darjah
+            isGalleryMode: false,      // Sama ada pengguna guna gambar dari galeri
+            autoTime: true,            // Auto-kemas kini masa setiap saat
+            lastDataUrl: null,
+            lastFileName: '',
+            lastBlob: null
+        };
+
+        // Rujukan Elemen DOM
+        const videoEl = document.getElementById('cameraVideo');
+        const uploadedImgEl = document.getElementById('uploadedImage');
+        const cameraFallbackEl = document.getElementById('cameraFallback');
+        const cameraErrorMsgEl = document.getElementById('cameraErrorMsg');
+        const rotationBadgeEl = document.getElementById('rotationBadge');
+        const backToLiveBtn = document.getElementById('backToLiveBtn');
+        const flashOverlay = document.getElementById('flashOverlay');
+
+        const dateInput = document.getElementById('dateInput');
+        const previewDateText = document.getElementById('previewDateText');
+
+        const renderCanvas = document.getElementById('renderCanvas');
+        const resultModal = document.getElementById('resultModal');
+        const finalResultImg = document.getElementById('finalResultImg');
+        const savedFileNameText = document.getElementById('savedFileNameText');
+        const lastPhotoBtn = document.getElementById('lastPhotoBtn');
+        const lastThumbImg = document.getElementById('lastThumbImg');
+        const lastThumbPlaceholder = document.getElementById('lastThumbPlaceholder');
+        const toastMsg = document.getElementById('toastMsg');
+
+        // Nama Bulan Ringkas dalam Bahasa Melayu
+        const BULAN_MS = [
+            'Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun',
+            'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'
+        ];
+
+        // ==================== 1. FUNGSI TARIKH & MASA ====================
+        function formatTarikhMasaMelayu(dateObj = new Date()) {
+            const hari = dateObj.getDate();
+            const bulan = BULAN_MS[dateObj.getMonth()];
+            const tahun = dateObj.getFullYear();
+
+            let jam = dateObj.getHours();
+            const minit = String(dateObj.getMinutes()).padStart(2, '0');
+            const ampm = jam >= 12 ? 'PM' : 'AM';
+            jam = jam % 12;
+            jam = jam ? jam : 12; // Jam 0 jadi 12
+
+            return `${hari} ${bulan} ${tahun}, ${jam}:${minit} ${ampm}`;
+        }
+
+        function kemasKiniMasaSemasa() {
+            if (!state.autoTime) return;
+            const teksMasa = formatTarikhMasaMelayu(new Date());
+            dateInput.value = teksMasa;
+            previewDateText.textContent = teksMasa;
+        }
+
+        // Jika pengguna sunting tarikh secara manual, hentikan auto-update sementara
+        dateInput.addEventListener('input', () => {
+            state.autoTime = false;
+            previewDateText.textContent = dateInput.value || formatTarikhMasaMelayu();
+        });
+
+        document.getElementById('resetTimeBtn').addEventListener('click', () => {
+            state.autoTime = true;
+            kemasKiniMasaSemasa();
+            tunjukToast('Tarikh & masa ditetapkan ke waktu semasa');
+        });
+
+        // ==================== 2. FUNGSI KAMERA & GALERI ====================
+        async function mulakanKamera() {
+            // Hentikan strim lama jika ada
+            if (state.stream) {
+                state.stream.getTracks().forEach(track => track.stop());
+            }
+
+            state.isGalleryMode = false;
+            uploadedImgEl.classList.add('hidden');
+            videoEl.classList.remove('hidden');
+            backToLiveBtn.classList.add('hidden');
+            cameraFallbackEl.classList.add('hidden');
+
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: state.facingMode },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                };
+
+                state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoEl.srcObject = state.stream;
+                kemasKiniTransformPratonton();
+            } catch (error) {
+                console.warn('Kamera tidak dapat diakses:', error);
+                cameraFallbackEl.classList.remove('hidden');
+                cameraErrorMsgEl.textContent = 'Akses kamera disekat atau tiada kamera dikesan.';
+            }
+        }
+
+        // Tukar Kamera Depan / Belakang
+        document.getElementById('flipCameraBtn').addEventListener('click', () => {
+            if (state.isGalleryMode) {
+                mulakanKamera();
+                return;
+            }
+            state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
+            mulakanKamera();
+            tunjukToast(state.facingMode === 'user' ? 'Kamera Hadapan' : 'Kamera Belakang');
+        });
+
+        document.getElementById('retryCameraBtn').addEventListener('click', mulakanKamera);
+
+        // Muat naik gambar dari galeri telefon
+        document.getElementById('galleryInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (state.stream) {
+                    state.stream.getTracks().forEach(track => track.stop());
+                }
+                state.isGalleryMode = true;
+                uploadedImgEl.src = event.target.result;
+                uploadedImgEl.classList.remove('hidden');
+                videoEl.classList.add('hidden');
+                cameraFallbackEl.classList.add('hidden');
+                backToLiveBtn.classList.remove('hidden');
+                kemasKiniTransformPratonton();
+                tunjukToast('Gambar galeri dimuatkan');
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        });
+
+        backToLiveBtn.addEventListener('click', mulakanKamera);
+
+        // ==================== 3. FUNGSI ROTATE (PUTAR 90°) ====================
+        function kemasKiniTransformPratonton() {
+            const sudut = state.rotation;
+            rotationBadgeEl.textContent = `Putaran: ${sudut}°`;
+
+            // Skala sedikit apabila 90° atau 270° supaya muat kemas dalam bingkai potret
+            const skala = (sudut === 90 || sudut === 270) ? 0.75 : 1;
+            const cermin = (!state.isGalleryMode && state.facingMode === 'user') ? 'scaleX(-1)' : '';
+
+            const transformStr = `${cermin} rotate(${sudut}deg) scale(${skala})`;
+            videoEl.style.transform = transformStr;
+            uploadedImgEl.style.transform = transformStr;
+        }
+
+        function putarKamera() {
+            state.rotation = (state.rotation + 90) % 360;
+            kemasKiniTransformPratonton();
+        }
+
+        document.getElementById('rotateBtn').addEventListener('click', putarKamera);
+        document.getElementById('bottomRotateBtn').addEventListener('click', putarKamera);
+
+        // ==================== 4. FUNGSI LUKIS WATERMARK & SIMPAN KE FAIL ====================
+        function lukisLogoWatermarkPadaCanvas(ctx, x, y, size) {
+            ctx.save();
+            // Latar belakang kotak bulat bergradien hijau zamrud
+            const grad = ctx.createLinearGradient(x, y, x + size, y + size);
+            grad.addColorStop(0, '#10b981');
+            grad.addColorStop(1, '#0d9488');
+
+            const radius = size * 0.26;
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.roundRect(x, y, size, size, radius);
+            ctx.fill();
+
+            // Lukis ikon jam & lensa kamera putih di tengah logo
+            const cx = x + size / 2;
+            const cy = y + size / 2;
+            const clockR = size * 0.30;
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(2, size * 0.075);
+            ctx.beginPath();
+            ctx.arc(cx, cy, clockR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Jarum jam kuning emas
+            ctx.strokeStyle = '#fde047';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - clockR * 0.55);
+            ctx.lineTo(cx, cy);
+            ctx.lineTo(cx + clockR * 0.48, cy + clockR * 0.32);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function tangkapDanSimpanGambar() {
+            // Tentukan sumber imej (Video Live atau Gambar Galeri)
+            let sumber = null;
+            let srcW = 0;
+            let srcH = 0;
+
+            if (state.isGalleryMode && uploadedImgEl.complete && uploadedImgEl.naturalWidth > 0) {
+                sumber = uploadedImgEl;
+                srcW = uploadedImgEl.naturalWidth;
+                srcH = uploadedImgEl.naturalHeight;
+            } else if (!state.isGalleryMode && videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
+                sumber = videoEl;
+                srcW = videoEl.videoWidth;
+                srcH = videoEl.videoHeight;
+            } else {
+                tunjukToast('Kamera belum sedia atau tiada gambar dipilih.');
+                return;
+            }
+
+            // Kesan kilat kamera (Flash)
+            flashOverlay.classList.remove('camera-flash');
+            void flashOverlay.offsetWidth; // trigger reflow
+            flashOverlay.classList.add('camera-flash');
+
+            // Tentukan dimensi canvas akhir selepas putaran (90° atau 270° menukar lebar & tinggi)
+            const isRotatedSideways = (state.rotation === 90 || state.rotation === 270);
+            const finalW = isRotatedSideways ? srcH : srcW;
+            const finalH = isRotatedSideways ? srcW : srcH;
+
+            renderCanvas.width = finalW;
+            renderCanvas.height = finalH;
+            const ctx = renderCanvas.getContext('2d');
+
+            // 1. Lukis Gambar Utama dengan Sudut Putaran yang Dipilih
+            ctx.save();
+            ctx.translate(finalW / 2, finalH / 2);
+            ctx.rotate((state.rotation * Math.PI) / 180);
+
+            // Cerminkan secara mendatar jika kamera depan (selfie)
+            if (!state.isGalleryMode && state.facingMode === 'user') {
+                ctx.scale(-1, 1);
+            }
+
+            ctx.drawImage(sumber, -srcW / 2, -srcH / 2, srcW, srcH);
+            ctx.restore();
+
+            // 2. Lukis Watermark Timemark (Logo + Tarikh & Masa) di Sudut Bawah Kiri
+            const minDim = Math.min(finalW, finalH);
+            const margin = Math.round(minDim * 0.035);
+            const padX = Math.round(minDim * 0.026);
+            const padY = Math.round(minDim * 0.020);
+            const logoSize = Math.round(minDim * 0.068);
+            const gapLogo = Math.round(minDim * 0.022);
+
+            const fontSizeTarikh = Math.max(18, Math.round(minDim * 0.032));
+            const fontSizeLabel = Math.max(12, Math.round(minDim * 0.020));
+
+            const teksTarikh = (dateInput.value || formatTarikhMasaMelayu()).trim();
+            const teksJenama = 'TIMEMARK PRO';
+
+            const maxCardWidth = finalW - (margin * 2);
+
+            ctx.font = `700 ${fontSizeTarikh}px Inter, sans-serif`;
+            const lebarTarikh = ctx.measureText(teksTarikh).width;
+
+            ctx.font = `600 ${fontSizeLabel}px Inter, sans-serif`;
+            const lebarJenama = ctx.measureText(teksJenama).width;
+
+            const lebarKandunganTeks = Math.max(lebarTarikh, lebarJenama);
+            const tinggiKandunganTeks = fontSizeTarikh + (fontSizeTarikh * 0.35) + fontSizeLabel;
+
+            const cardW = Math.min(maxCardWidth, padX * 2 + logoSize + gapLogo + lebarKandunganTeks);
+            const cardH = Math.max(logoSize + padY * 2, tinggiKandunganTeks + padY * 2);
+
+            const cardX = margin;
+            const cardY = finalH - margin - cardH;
+
+            // Latar Belakang Kad Watermark Gelap Lutsinar + Sempadan Halus
+            ctx.save();
+            ctx.fillStyle = 'rgba(9, 9, 11, 0.68)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.lineWidth = Math.max(1.5, minDim * 0.002);
+
+            ctx.beginPath();
+            ctx.roundRect(cardX, cardY, cardW, cardH, Math.round(minDim * 0.024));
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // Lukis Logo Kecil Cantik di Kiri Kad
+            const logoX = cardX + padX;
+            const logoY = cardY + (cardH - logoSize) / 2;
+            lukisLogoWatermarkPadaCanvas(ctx, logoX, logoY, logoSize);
+
+            // Lukis Teks Tarikh (Warna Kuning Emas Lembut)
+            const textStartX = logoX + logoSize + gapLogo;
+            const totalTextBlockH = fontSizeTarikh + (fontSizeTarikh * 0.28) + fontSizeLabel;
+            let cursorY = cardY + (cardH - totalTextBlockH) / 2 + fontSizeTarikh * 0.86;
+
+            ctx.fillStyle = '#fcd34d'; // Amber 300
+            ctx.font = `700 ${fontSizeTarikh}px Inter, sans-serif`;
+            ctx.fillText(teksTarikh, textStartX, cursorY);
+
+            // Lukis Label Kecil Jenama di Bawah Tarikh
+            cursorY += fontSizeTarikh * 0.35 + fontSizeLabel * 0.85;
+            ctx.fillStyle = '#6ee7b7'; // Emerald 300
+            ctx.font = `600 ${fontSizeLabel}px Inter, sans-serif`;
+            ctx.fillText(teksJenama, textStartX, cursorY);
+
+            // 3. Jana Fail JPEG Berkualiti Tinggi & Terus Muat Turun ke Telefon
+            const sekarang = new Date();
+            const capMasaFail = [
+                sekarang.getFullYear(),
+                String(sekarang.getMonth() + 1).padStart(2, '0'),
+                String(sekarang.getDate()).padStart(2, '0'),
+                '_',
+                String(sekarang.getHours()).padStart(2, '0'),
+                String(sekarang.getMinutes()).padStart(2, '0'),
+                String(sekarang.getSeconds()).padStart(2, '0')
+            ].join('');
+
+            const namaFail = `Timemark_${capMasaFail}.jpg`;
+            const dataUrl = renderCanvas.toDataURL('image/jpeg', 0.94);
+
+            state.lastDataUrl = dataUrl;
+            state.lastFileName = namaFail;
+
+            renderCanvas.toBlob((blob) => {
+                state.lastBlob = blob;
+            }, 'image/jpeg', 0.94);
+
+            // Cetuskan Muat Turun Automatik ke Folder Download Telefon
+            muatTurunFail(dataUrl, namaFail);
+
+            // Kemas kini pratonton kecil & buka modal hasil
+            lastPhotoBtn.disabled = false;
+            lastThumbImg.src = dataUrl;
+            lastThumbImg.classList.remove('hidden');
+            lastThumbPlaceholder.classList.add('hidden');
+
+            finalResultImg.src = dataUrl;
+            savedFileNameText.textContent = namaFail;
+            resultModal.classList.remove('hidden');
+
+            tunjukToast(`Disimpan: ${namaFail}`);
+        }
+
+        function muatTurunFail(dataUrl, fileName) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        document.getElementById('captureBtn').addEventListener('click', tangkapDanSimpanGambar);
+
+        // Kawalan Modal Hasil & Butang Kongsi
+        lastPhotoBtn.addEventListener('click', () => {
+            if (state.lastDataUrl) {
+                resultModal.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            resultModal.classList.add('hidden');
+        });
+
+        document.getElementById('reDownloadBtn').addEventListener('click', () => {
+            if (state.lastDataUrl) {
+                muatTurunFail(state.lastDataUrl, state.lastFileName);
+                tunjukToast('Memuat turun semula gambar...');
+            }
+        });
+
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+            if (!state.lastBlob) return;
+            const file = new File([state.lastBlob], state.lastFileName, { type: 'image/jpeg' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Timemark Pro',
+                        text: `${dateInput.value}`
+                    });
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        tunjukToast('Gagal berkongsi gambar.');
+                    }
+                }
+            } else {
+                muatTurunFail(state.lastDataUrl, state.lastFileName);
+                tunjukToast('Fail dimuat turun ke peranti anda.');
+            }
+        });
+
+        // Fungsi Notifikasi Toast Ringkas
+        let toastTimer = null;
+        function tunjukToast(mesej) {
+            toastMsg.textContent = mesej;
+            toastMsg.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toastMsg.classList.add('opacity-0');
+            }, 2600);
+        }
+
+        // ==================== MULA APLIKASI ====================
+        window.addEventListener('load', () => {
+            kemasKiniMasaSemasa();
+            setInterval(kemasKiniMasaSemasa, 1000);
+            mulakanKamera();
+        });
+    </script>
+</body>
+</html>
